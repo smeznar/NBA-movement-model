@@ -1,0 +1,4 @@
+- improve animation (example: https://github.com/linouk23/NBA-Player-Movements/blob/master/Event.py )
+- clean data
+- make a data matrix
+- weight data
