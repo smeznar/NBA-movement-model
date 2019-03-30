@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
-from MatchDataParser import MatchParser
 from matplotlib import animation
+
+from project_code import MatchDataParser
+from project_code import PlayByPlayParser
 
 VISITOR = 'visitor'
 HOME = 'home'
@@ -27,6 +29,8 @@ X_MIN = 0
 X_MAX = 94
 Y_MIN = 0
 Y_MAX = 50
+
+base_path = '../match_data/'
 
 
 class EventAnimation:
@@ -110,6 +114,7 @@ class EventAnimation:
 
 
 if __name__ == '__main__':
-    match = MatchParser("../match_data/MIA-DAL.json")
+    match = MatchDataParser.MatchParser("../match_data/MIA-DAL.json")
+    play_by_play = PlayByPlayParser.EventParser(base_path + match.data['gameid'])
     event = match.get_event()
     a = EventAnimation(event)
