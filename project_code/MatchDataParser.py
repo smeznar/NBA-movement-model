@@ -13,7 +13,7 @@ class MatchParser:
             data = json.load(f)
             no_moment = []
             for i in range(len(data['events'])):
-                if len(data['events'][i]['moments']) < 1 :
+                if len(data['events'][i]['moments']) < 1:
                     no_moment.append(i)
             for i in reversed(no_moment):
                 del data['events'][i]
