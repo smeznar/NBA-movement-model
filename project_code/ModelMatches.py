@@ -11,7 +11,8 @@ from project_code import MatchVectorizer
 class FileExtractor:
     def __init__(self):
         self.base_path = '/Volumes/Seagate Expansion Drive/nba-movement-data/data/'
-        self.teams = ['MIA']
+        self.teams = ['OKC', 'GSW', 'MEM']
+        # OKC fast not many passes, GSW fast and many passes, MEM slow and many passes
         self.match_list = []
         self.team_count = 0
         self.match_count = 0
@@ -50,7 +51,10 @@ if __name__ == '__main__':
     while file_name is not None:
         time.sleep(1)
         mv = MatchVectorizer.MatchVectorizer(file_name)
-        # Do something with the model
+        attack = mv.get_next_attack()
+        while attack is not None:
+            # Do something
+            attack = mv.get_next_attack()
         del mv
         file_name = fe.get_next_file_name()
 
