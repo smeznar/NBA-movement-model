@@ -1,8 +1,7 @@
-#import keras
 import glob
 import os
-import time
 
+import numpy as np
 from pyunpack import Archive
 
 from project_code import MatchVectorizer
@@ -12,6 +11,7 @@ class FileExtractor:
     def __init__(self):
         self.base_path = '/Volumes/Seagate Expansion Drive/nba-movement-data/data/'
         self.teams = ['OKC', 'GSW', 'MEM']
+        self.current_team = ''
         # OKC fast not many passes, GSW fast and many passes, MEM slow and many passes
         self.match_list = []
         self.team_count = 0
@@ -35,6 +35,7 @@ class FileExtractor:
         self.match_count = 0
         if self.team_count >= len(self.teams):
             return True
+        self.current_team = self.teams[self.team_count]
         self.match_list = glob.glob(self.base_path + '*' + self.teams[self.team_count] + '*.7z')
         self.team_count += 1
         return False
@@ -42,20 +43,36 @@ class FileExtractor:
 
 class ModelMatches:
     def __init__(self):
+        self.x = list()
+        self.y = list()
+
+    def add_row(self, x, y):
+        self.x.append(x)
+        self.y.append(y)
+
+    def create_a_model(self):
+        x = np.array(self.x)
+        y = np.array(self.y)
         pass
 
 
+# TODO: maybe transfer directly to ModelMatches
 if __name__ == '__main__':
     fe = FileExtractor()
+    mm = ModelMatches()
     file_name = fe.get_next_file_name()
     while file_name is not None:
-        time.sleep(1)
-        mv = MatchVectorizer.MatchVectorizer(file_name)
+        mv = MatchVectorizer.MatchVectorizer(file_name, fe.current_team)
+        print(fe.current_team, ': ', file_name)
         attack = mv.get_next_attack()
+        i = 0
         while attack is not None:
-            # Do something
+            i += 1
+            mm.add_row(attack, fe.current_team)
             attack = mv.get_next_attack()
+        print(i)
         del mv
         file_name = fe.get_next_file_name()
+    mm.create_a_model()
 
     print('Finished')
