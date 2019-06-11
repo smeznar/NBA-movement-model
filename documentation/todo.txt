@@ -1,4 +1,3 @@
-- improve animation (example: https://github.com/linouk23/NBA-Player-Movements/blob/master/Event.py )
-- clean data
-- make a data matrix
-- weight data
+- When coming into the match, throw unused frames away and relicate them into a list of attacks
+- Calculate which way the attack goes in each period
+- Take the attacks out one by one and transform them into a vector
