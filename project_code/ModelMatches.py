@@ -4,12 +4,13 @@ import os
 import numpy as np
 from pyunpack import Archive
 
+from project_code import Constants
 from project_code import MatchVectorizer
 
 
 class FileExtractor:
     def __init__(self):
-        self.base_path = '/Volumes/Seagate Expansion Drive/nba-movement-data/data/'
+        self.base_path = Constants.DATA_BASE_PATH
         self.teams = ['OKC', 'GSW', 'MEM']
         self.current_team = ''
         # OKC fast not many passes, GSW fast and many passes, MEM slow and many passes

@@ -1,0 +1,17 @@
+# MOVEMENT DATA CONSTANTS
+MD_EVENT_STR = 'events'
+MD_OPPONENT_TEAM_STR = 'visitor'
+MD_HOME_TEAM_STR = 'home'
+MD_ABBREVIATION_STR = 'abbreviation'
+MD_TEAMID_STR = 'teamid'
+MD_MOMENTS_STR = 'moments'
+MD_SHOTCLOCK_NUM = 3
+MD_PERIOD_NUM = 0
+MD_TIME_LEFT_NUM = 2
+MD_POSITONS_NUM = 5
+MD_X_COORD_NUM = 2
+MD_Y_COORD_NUM = 3
+MD_PLAYERS_TEAMID_NUM = 0
+
+# OTHER
+DATA_BASE_PATH = '/Volumes/Seagate Expansion Drive/nba-movement-data/data/'
