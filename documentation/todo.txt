@@ -1,3 +1,6 @@
-- When coming into the match, throw unused frames away and relicate them into a list of attacks
-- Calculate which way the attack goes in each period
-- Take the attacks out one by one and transform them into a vector
+- make vectors (by time or pass sequences maybe) and save them to a file
+- vectors of same length but without empty places
+- add number of pass changes and distance to the basket when thrown, maybe duration of attack
+- invert field
+- check
+

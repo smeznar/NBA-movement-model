@@ -1,7 +1,7 @@
+import csv
 import glob
 import os
 
-import numpy as np
 from pyunpack import Archive
 
 from project_code import Constants
@@ -44,17 +44,14 @@ class FileExtractor:
 
 class ModelMatches:
     def __init__(self):
-        self.x = list()
-        self.y = list()
+        self.file = open('nba_vectors.csv', 'w')
+        self.writer = csv.writer(self.file, delimiter='|')
 
-    def add_row(self, x, y):
-        self.x.append(x)
-        self.y.append(y)
+    def write_row(self, x):
+        self.writer.writerow(x)
 
-    def create_a_model(self):
-        x = np.array(self.x)
-        y = np.array(self.y)
-        pass
+    def finish_file(self):
+        self.file.close()
 
 
 # TODO: maybe transfer directly to ModelMatches
@@ -65,15 +62,17 @@ if __name__ == '__main__':
     while file_name is not None:
         mv = MatchVectorizer.MatchVectorizer(file_name, fe.current_team)
         print(fe.current_team, ': ', file_name)
-        attack = mv.get_next_attack()
-        i = 0
-        while attack is not None:
-            i += 1
-            mm.add_row(attack, fe.current_team)
+        try:
             attack = mv.get_next_attack()
-        print(i)
+            i = 0
+            while attack is not None:
+                i += 1
+                mm.write_row(attack)
+                attack = mv.get_next_attack()
+            print(i)
+        except:
+            mm.finish_file()
+            print(file_name)
         del mv
         file_name = fe.get_next_file_name()
-    mm.create_a_model()
-
-    print('Finished')
+    mm.finish_file()

@@ -15,3 +15,5 @@ MD_PLAYERS_TEAMID_NUM = 0
 
 # OTHER
 DATA_BASE_PATH = '/Volumes/Seagate Expansion Drive/nba-movement-data/data/'
+COURT_DIMENSION_X = 94
+COURT_DIMENSION_Y = 50
