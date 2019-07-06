@@ -7,11 +7,14 @@ from pyunpack import Archive
 from project_code import Constants
 from project_code import MatchVectorizer
 
+all_teams = ['BOS', 'LAC', 'CHI', 'PHI', 'CLE', 'MEM', 'ATL', 'SAC', 'UTA', 'POR', 'MIN', 'OKC', 'TOR', 'BKN', 'NOP',
+             'GSW', 'MIA', 'DAL', 'PHX', 'IND', 'SAS', 'MIL', 'DET', 'NYK', 'CHA', 'WAS', 'HOU', 'LAL', 'DEN', 'ORL']
+
 
 class FileExtractor:
     def __init__(self):
         self.base_path = Constants.DATA_BASE_PATH
-        self.teams = ['OKC', 'GSW', 'MEM']
+        self.teams = all_teams[15:]
         self.current_team = ''
         # OKC fast not many passes, GSW fast and many passes, MEM slow and many passes
         self.match_list = []
@@ -30,7 +33,10 @@ class FileExtractor:
         Archive(match_path).extractall('../match_data/match_event/')
         match_name = glob.glob('../match_data/match_event/*')
         self.match_count += 1
-        return match_name[0]
+        if len(match_name) > 0:
+            return match_name[0]
+        else:
+            return 0
 
     def get_next_teams_matches(self):
         self.match_count = 0
@@ -44,7 +50,7 @@ class FileExtractor:
 
 class ModelMatches:
     def __init__(self):
-        self.file = open('nba_vectors.csv', 'w')
+        self.file = open('nba_vectors_defenders_distance_all_moments.csv', 'a')
         self.writer = csv.writer(self.file, delimiter='|')
 
     def write_row(self, x):
@@ -62,17 +68,15 @@ if __name__ == '__main__':
     while file_name is not None:
         mv = MatchVectorizer.MatchVectorizer(file_name, fe.current_team)
         print(fe.current_team, ': ', file_name)
-        try:
-            attack = mv.get_next_attack()
-            i = 0
-            while attack is not None:
-                i += 1
-                mm.write_row(attack)
-                attack = mv.get_next_attack()
-            print(i)
-        except:
-            mm.finish_file()
-            print(file_name)
+        attacks = mv.get_next_attack()
+        print(len(attacks))
+        for a in attacks:
+            mm.write_row(a)
+        # except Exception as e:
+        #     mm.finish_file()
+        #     print(e)
         del mv
         file_name = fe.get_next_file_name()
+        while file_name == 0:
+            file_name = fe.get_next_file_name()
     mm.finish_file()

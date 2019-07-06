@@ -1,5 +1,7 @@
+import csv
 import json
 import math
+import random
 
 from numpy import (array, dot, arccos, clip)
 from numpy.linalg import norm
@@ -20,17 +22,18 @@ class MatchVectorizer:
         self.team_number = 0
         self.team_name = team_name
         self.opponent_name = ''
-        if self.data[Constants.MD_EVENT_STR][0][Constants.MD_OPPONENT_TEAM_STR][
-            Constants.MD_ABBREVIATION_STR] == team_name:
-            self.team_number = self.data[Constants.MD_EVENT_STR][0][Constants.MD_OPPONENT_TEAM_STR][
-                Constants.MD_TEAMID_STR]
-            self.opponent_name = self.data[Constants.MD_EVENT_STR][0][Constants.MD_HOME_TEAM_STR][
-                Constants.MD_ABBREVIATION_STR]
-        else:
-            self.team_number = self.data[Constants.MD_EVENT_STR][0][Constants.MD_HOME_TEAM_STR][Constants.MD_TEAMID_STR]
-            self.opponent_name = self.data[Constants.MD_EVENT_STR][0][Constants.MD_OPPONENT_TEAM_STR][
-                Constants.MD_ABBREVIATION_STR]
-        self.right_direction = self.get_starting_direction()
+        if len(self.data[Constants.MD_EVENT_STR]) > 0:
+            if self.data[Constants.MD_EVENT_STR][0][Constants.MD_OPPONENT_TEAM_STR][
+                        Constants.MD_ABBREVIATION_STR] == team_name:
+                self.team_number = self.data[Constants.MD_EVENT_STR][0][Constants.MD_OPPONENT_TEAM_STR][
+                    Constants.MD_TEAMID_STR]
+                self.opponent_name = self.data[Constants.MD_EVENT_STR][0][Constants.MD_HOME_TEAM_STR][
+                    Constants.MD_ABBREVIATION_STR]
+            else:
+                self.team_number = self.data[Constants.MD_EVENT_STR][0][Constants.MD_HOME_TEAM_STR][Constants.MD_TEAMID_STR]
+                self.opponent_name = self.data[Constants.MD_EVENT_STR][0][Constants.MD_OPPONENT_TEAM_STR][
+                    Constants.MD_ABBREVIATION_STR]
+            #self.right_direction = self.get_starting_direction()
 
     @staticmethod
     def read_file(file_path):
@@ -53,16 +56,23 @@ class MatchVectorizer:
         for i in range(len(self.data[Constants.MD_EVENT_STR])):
             num = i
             event = self.data[Constants.MD_EVENT_STR][i]
-            # time = event[Constants.MD_MOMENTS_STR][0][Constants.MD_SHOTCLOCK_NUM]
             for moment in event[Constants.MD_MOMENTS_STR]:
-                if moment[Constants.MD_PERIOD_NUM] == period and moment[Constants.MD_TIME_LEFT_NUM] > period_time:
+                new_period = False
+                if moment[Constants.MD_TIME_LEFT_NUM] > period_time and moment[Constants.MD_PERIOD_NUM] == period:
                     continue
                 else:
+                    p = period
                     period = moment[Constants.MD_PERIOD_NUM]
+                    new_period = p != period
                     period_time = moment[Constants.MD_TIME_LEFT_NUM]
                 if moment[Constants.MD_SHOTCLOCK_NUM] is None:
+                    if len(attack) > 0:
+                        self.all_attacks.append(attack)
+                        self.moment_numbers.append(i)
+                    attack = list()
+                    time = 25.0
                     continue
-                elif moment[Constants.MD_SHOTCLOCK_NUM] > time:
+                elif moment[Constants.MD_SHOTCLOCK_NUM] > time or new_period:
                     if len(attack) > 0:
                         self.all_attacks.append(attack)
                         self.moment_numbers.append(i)
@@ -86,17 +96,17 @@ class MatchVectorizer:
         ball_x = attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
         # TODO: Maybe only first and last moment?
         for moment in attack:
-            if moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM] > ball_x:
-                positive += 1
-            elif moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM] < ball_x:
-                negative += 1
-            ball_x = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
-            ball_y = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
+            #if moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM] > ball_x:
+            #    positive += 1
+            #elif moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM] < ball_x:
+            #    negative += 1
+            x = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
+            y = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
             min_distance = 13600
             team_num = -1
             for i in range(1, len(moment[Constants.MD_POSITONS_NUM])):
-                distance = math.pow(ball_x - moment[Constants.MD_POSITONS_NUM][i][Constants.MD_X_COORD_NUM], 2) \
-                           + math.pow(ball_y - moment[Constants.MD_POSITONS_NUM][i][Constants.MD_Y_COORD_NUM], 2)
+                distance = math.pow(x - moment[Constants.MD_POSITONS_NUM][i][Constants.MD_X_COORD_NUM], 2) \
+                           + math.pow(y - moment[Constants.MD_POSITONS_NUM][i][Constants.MD_Y_COORD_NUM], 2)
                 if distance < min_distance:
                     min_distance = distance
                     team_num = moment[Constants.MD_POSITONS_NUM][i][Constants.MD_PLAYERS_TEAMID_NUM]
@@ -112,6 +122,7 @@ class MatchVectorizer:
         return result % 2
 
     def get_next_attack(self):
+        attacks = list()
         while self.event_num < len(self.all_attacks):
             attack = self.all_attacks[self.event_num]
             moment_number = self.moment_numbers[self.event_num]
@@ -119,8 +130,8 @@ class MatchVectorizer:
             if self.is_attack_wanted(attack, moment_number):
                 a = self.transform_attack_to_vector(attack, moment_number)
                 if a is not None:
-                    return a
-        return None
+                    attacks.append(a)
+        return self.change_positions(attacks)
 
     def is_attack_wanted(self, attack, moment_number):
         # if not self.is_time_ok(attack):
@@ -162,44 +173,34 @@ class MatchVectorizer:
     def transform_attack_to_vector(self, attack, moment_number):
         start_time = attack[0][Constants.MD_TIME_LEFT_NUM]
         end_time = attack[-1][Constants.MD_TIME_LEFT_NUM]
-        if start_time - end_time < 5:
+        if (start_time - end_time) < 5 or (start_time - end_time) > 24:
             return None
-        modified_attack = self.remove_static_moments(attack)
+        # modified_attack = self.remove_static_moments(attack)
         num_of_fields = 10
+        modified_attack = attack
+        if len(modified_attack) < num_of_fields:
+            modified_attack = attack
         vector = list()
         step = len(modified_attack)/(num_of_fields+1)
-        next = step
-        last_x = 0
-        last_y = 0
-        if self.right_direction + modified_attack[0][Constants.MD_PERIOD_NUM] % 2 == 1:
-            last_x = Constants.COURT_DIMENSION_X - modified_attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
-            last_y = Constants.COURT_DIMENSION_Y - modified_attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
-        else:
-            last_x = modified_attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
-            last_y = modified_attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
+        next_moment = step
+        last_x = modified_attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
+        last_y = modified_attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
         i = 0
         while i < num_of_fields:
-            moment = modified_attack[min(int(next), len(attack)-1)]
-            x = 0
-            y = 0
-            if self.right_direction + moment[Constants.MD_PERIOD_NUM] % 2 == 1:
-                x = Constants.COURT_DIMENSION_X - moment[Constants.MD_POSITONS_NUM][0][
-                    Constants.MD_X_COORD_NUM]
-                y = Constants.COURT_DIMENSION_Y - moment[Constants.MD_POSITONS_NUM][0][
-                    Constants.MD_Y_COORD_NUM]
-            else:
-                x = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
-                y = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
+            moment = modified_attack[min(int(next_moment), len(attack)-1)]
+            x = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
+            y = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
             vector.append(last_x)
             vector.append(last_y)
             vector.append(x-last_x)
             vector.append(y-last_y)
+            vector = self.add_opponent_players(moment, vector)
             last_x = x
             last_y = y
-            next += step
+            next_moment += step
             i += 1
         vector.append(start_time-end_time)
-        vector.append(math.sqrt(math.pow(88-last_x, 2)+math.pow(25-last_y, 2)))
+        # vector.append(math.sqrt(math.pow(88-last_x, 2)+math.pow(25-last_y, 2)))
         vector.append(self.get_num_of_passes(modified_attack))
         vector.append(attack[-1][Constants.MD_PERIOD_NUM])
         vector.append(attack[-1][Constants.MD_TIME_LEFT_NUM])
@@ -220,6 +221,26 @@ class MatchVectorizer:
         ma.append(attack[-1])
         return ma
 
+    def add_opponent_players(self, moment, vector):
+        def sort_val(i):
+            return i[2]
+        positions = list()
+        x = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
+        y = moment[Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
+
+        for player in moment[Constants.MD_POSITONS_NUM]:
+            if player[0] not in [-1, self.team_number]:
+                x_player = player[Constants.MD_X_COORD_NUM]
+                y_player = player[Constants.MD_Y_COORD_NUM]
+                distance = math.sqrt(math.pow(x_player-x, 2)+math.pow(y_player-y, 2))
+                positions.append([x_player, y_player, distance])
+
+        positions.sort(key=sort_val)
+        for v in positions:
+            vector.append(v[0])
+            vector.append(v[1])
+        return vector
+
     def get_num_of_passes(self, attack):
         if len(attack) < 3:
             return 0
@@ -233,8 +254,12 @@ class MatchVectorizer:
             y = attack[i][Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
             delta_x = x - last_x
             delta_y = y - last_y
-            c = dot(array([last_delta_x, last_delta_y]), array([delta_x, delta_y]))\
-                / norm(array([last_delta_x, last_delta_y])) / norm(array([delta_x, delta_y]))  # -> cosine of the angle
+            norms = (norm(array([last_delta_x, last_delta_y])) * norm(array([delta_x, delta_y])))
+            if norms != 0:
+                c = dot(array([last_delta_x, last_delta_y]), array([delta_x, delta_y]))\
+                    / norms
+            else:
+                c = 0
             angle = arccos(clip(c, -1, 1))
             if abs(min(angle, 6.28-angle)) > 0.5:
                 num_of_passes += 1
@@ -243,3 +268,73 @@ class MatchVectorizer:
             last_delta_x = delta_x
             last_delta_y = delta_y
         return num_of_passes
+
+    def change_positions(self, attacks):
+        if len(attacks) < 1:
+            return attacks
+        last_period = 1
+        buffered_attacks = list()
+        corrected_attacks = list()
+        i = 0
+        right_side = 0
+        wrong_side = 0
+        while i < len(attacks):
+            attack = attacks[i]
+            if len(attack) != 146:
+                i += 1
+                continue
+            if attack[142] != last_period:
+                last_period = attack[142]
+                if right_side < wrong_side:
+                    buffered_attacks = self.transform_row_coordinates(buffered_attacks)
+                corrected_attacks = corrected_attacks + buffered_attacks
+                buffered_attacks = list()
+                right_side = 0
+                wrong_side = 0
+            if attack[126] > 47:
+                right_side += 1
+            else:
+                wrong_side += 1
+            if len(attack) == 146:
+                buffered_attacks.append(attack)
+            i += 1
+        if right_side < wrong_side:
+            buffered_attacks = self.transform_row_coordinates(buffered_attacks)
+        corrected_attacks = corrected_attacks + buffered_attacks
+        for a in corrected_attacks:
+            a.insert(141, math.sqrt(math.pow(88 - a[126], 2) + math.pow(25 - a[127], 2)))
+        return corrected_attacks
+
+    def transform_row_coordinates(self, buffered_attacks):
+        for a in buffered_attacks:
+            for i in range(10):
+                a[i * 14] = Constants.COURT_DIMENSION_X - a[i * 14]
+                a[i * 14 + 1] = Constants.COURT_DIMENSION_Y - a[i * 14 + 1]
+                a[i * 14 + 2] = - a[i * 14 + 2]
+                a[i * 14 + 3] = - a[i * 14 + 3]
+                for j in range(5):
+                    a[i * 14 + j * 2 + 4] = Constants.COURT_DIMENSION_X - a[i * 14 + j * 2 + 4]
+                    a[i * 14 + j * 2 + 5] = Constants.COURT_DIMENSION_Y - a[i * 14 + j * 2 + 5]
+        return buffered_attacks
+
+
+def transform_vector_for_nn(in_name, out_name):
+    rows = list()
+    with open(in_name) as file:
+        reader = csv.reader(file, delimiter='|')
+        for row in reader:
+            if len(row) != 147 or float(row[144]) > 180:
+                continue
+            #if float(row[141])>50:
+            #    continue
+            rows.append(row)
+    random.shuffle(rows)
+    with open(out_name, 'w') as file:
+        writer = csv.writer(file, delimiter='|')
+        for r in rows:
+            writer.writerow(r)
+
+
+if __name__ == '__main__':
+    transform_vector_for_nn('../match_data/nba_vectors_defenders_distance_all_moments.csv',
+                            '../match_data/nba_vectors_defenders_distance_corrected_all_moments.csv')
