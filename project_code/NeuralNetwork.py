@@ -17,42 +17,69 @@ class AutoencoderNeuralNetwork:
         self.model = None
         self.x_train = None
         self.x_test = None
+        self.y_train = None
+        self.y_test = None
         self.tensorboard = None
-        self.create_model()
+        self.team_dict = dict()
+        for i in range(30):
+            self.team_dict[all_teams[i]] = i
+        #self.create_model()
 
     def get_data(self, path):
         x = list()
+        y = list()
         with open(path) as file:
             reader = csv.reader(file, delimiter='|')
             for row in reader:
                 x.append([float(row[i]) for i in range(143)])
+                y.append(self.team_dict[row[-1]])
         normalize = np.array(x[:int(len(x)*0.9)])
         min_vec = np.min(normalize, axis=0)
         normalize = normalize - min_vec
         max_vec = np.max(normalize, axis=0)
         self.x_train = normalize / max_vec
         self.x_test = (np.array(x[int(len(x) * 0.9):])-min_vec)/max_vec
+        ohv = to_categorical(np.array(y[:int(len(y) * 0.9)]), 30)
+        self.y_train = ohv
+        ohvt = to_categorical(np.array(y[int(len(y) * 0.9):]), 30)
+        self.y_test = ohvt
 
     def create_model(self):
         wanted_dimensions = 10
         self.model = Sequential()
-        self.model.add(Dense(4*wanted_dimensions, input_dim=143, activation='relu'))
+        self.model.add(Dense(8 * wanted_dimensions, input_dim=143, activation='relu'))
+        self.model.add(Dense(4 * wanted_dimensions, activation='relu'))
         self.model.add(Dense(2*wanted_dimensions, activation='relu'))
         self.model.add(Dense(wanted_dimensions, activation='relu'))
         self.model.add(Dense(2 * wanted_dimensions, activation='relu'))
         self.model.add(Dense(4 * wanted_dimensions, activation='relu'))
-        self.model.add(Dense(143, activation='sigmoid'))
-        self.tensorboard = TensorBoard(log_dir="logs/{}".format(time()))
+        self.model.add(Dense(8 * wanted_dimensions, activation='relu'))
+        self.model.add(Dense(143, activation='linear'))
         self.model.compile(optimizer='sgd',
                            loss="mean_squared_error")
 
     def fit_model(self):
-        checkpointer = ModelCheckpoint(filepath='../match_data/model_parameters_autoencoder.h5', verbose=1, save_best_only=True)
-        self.model.fit(self.x_train, self.x_train, epochs=90, batch_size=60, validation_data=(self.x_test, self.x_test),
-                       callbacks=[checkpointer, self.tensorboard])
+        # checkpointer = ModelCheckpoint(filepath='../match_data/model_parameters_autoencoder.h5', verbose=1, save_best_only=True)
+        #self.model.fit(self.x_train, self.x_train, epochs=35, batch_size=60, validation_data=(self.x_test, self.x_test),
+        #               callbacks=[self.tensorboard, checkpointer])
+        self.model.summary()
+        self.tensorboard = TensorBoard(log_dir="logs/{}".format(time()))
+        self.model.fit(self.x_train, self.y_train, epochs=90, batch_size=60, validation_data=(self.x_test, self.y_test),
+                       callbacks=[self.tensorboard])
 
     def load_model(self):
         self.model = load_model('../match_data/model_parameters_autoencoder.h5')
+        self.model.load_weights('../match_data/model_parameters_autoencoder.h5')
+        self.model.pop()
+        self.model.pop()
+        self.model.pop()
+        self.model.pop()
+        for layer in self.model.layers:
+            layer.trainable = False
+        layer = Dense(30, activation='softmax')
+        layer.name = layer.name + str("_new")
+        self.model.add(layer)
+        self.model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
 
 
 class ClassificationNeuralNetwork:
@@ -206,7 +233,7 @@ if __name__ == '__main__':
     # nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
     # # nn.load_model()
     # nn.fit_model()
-    nn = BallNeuralNetwork()
+    nn = AutoencoderNeuralNetwork()
     nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
-    # nn.load_model()
+    nn.load_model()
     nn.fit_model()

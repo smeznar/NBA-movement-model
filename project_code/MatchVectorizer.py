@@ -2,7 +2,10 @@ import csv
 import json
 import math
 import random
+import time
 
+import numpy as np
+from PIL import Image
 from numpy import (array, dot, arccos, clip)
 from numpy.linalg import norm
 
@@ -129,9 +132,21 @@ class MatchVectorizer:
             self.event_num += 1
             if self.is_attack_wanted(attack, moment_number):
                 a = self.transform_attack_to_vector(attack, moment_number)
+                b = self.attack_to_picture(attack, moment_number)
                 if a is not None:
-                    attacks.append(a)
-        return self.change_positions(attacks)
+                    attacks.append((a, b))
+        ret = self.change_positions(attacks)
+        if len(ret) > 0:
+            attacks, images = ret
+            i = 0
+            for im in images:
+                image = Image.fromarray(im, 'L')
+                filename = self.team_name + "_" + self.opponent_name + "_" + str(i) + "_" + str(time.time()) + ".jpg"
+                image.save('../match_data/images/' + filename)
+                i += 1
+            return attacks
+        else:
+            return None
 
     def is_attack_wanted(self, attack, moment_number):
         # if not self.is_time_ok(attack):
@@ -274,12 +289,14 @@ class MatchVectorizer:
             return attacks
         last_period = 1
         buffered_attacks = list()
+        buffered_image = list()
         corrected_attacks = list()
+        corrected_image = list()
         i = 0
         right_side = 0
         wrong_side = 0
         while i < len(attacks):
-            attack = attacks[i]
+            attack = attacks[i][0]
             if len(attack) != 146:
                 i += 1
                 continue
@@ -287,8 +304,14 @@ class MatchVectorizer:
                 last_period = attack[142]
                 if right_side < wrong_side:
                     buffered_attacks = self.transform_row_coordinates(buffered_attacks)
+                    for im in buffered_image:
+                        corrected_image.append(np.flip(im, axis=(0, 1)))
+                else:
+                    for im in buffered_image:
+                        corrected_image.append(im)
                 corrected_attacks = corrected_attacks + buffered_attacks
                 buffered_attacks = list()
+                buffered_image = list()
                 right_side = 0
                 wrong_side = 0
             if attack[126] > 47:
@@ -297,13 +320,20 @@ class MatchVectorizer:
                 wrong_side += 1
             if len(attack) == 146:
                 buffered_attacks.append(attack)
+            if attacks[i][1] is not None:
+                buffered_image.append(attacks[i][1])
             i += 1
         if right_side < wrong_side:
             buffered_attacks = self.transform_row_coordinates(buffered_attacks)
+            for im in buffered_image:
+                corrected_image.append(np.flip(im, axis=(0, 1)))
+        else:
+            for im in buffered_image:
+                corrected_image.append(im)
         corrected_attacks = corrected_attacks + buffered_attacks
         for a in corrected_attacks:
             a.insert(141, math.sqrt(math.pow(88 - a[126], 2) + math.pow(25 - a[127], 2)))
-        return corrected_attacks
+        return corrected_attacks, corrected_image
 
     def transform_row_coordinates(self, buffered_attacks):
         for a in buffered_attacks:
@@ -317,13 +347,42 @@ class MatchVectorizer:
                     a[i * 14 + j * 2 + 5] = Constants.COURT_DIMENSION_Y - a[i * 14 + j * 2 + 5]
         return buffered_attacks
 
+    def attack_to_picture(self, attack, moment_number):
+        start_time = attack[0][Constants.MD_TIME_LEFT_NUM]
+        end_time = attack[-1][Constants.MD_TIME_LEFT_NUM]
+        if end_time > 120 or (start_time - end_time) < 5 or (start_time - end_time) > 24:
+            return None
+        data = np.zeros((94, 50), dtype=np.uint8)
+        step = 200/len(attack)
+        point = 55
+        #last_x = attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
+        #last_y = attack[0][Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
+        for a in attack:
+            x = a[Constants.MD_POSITONS_NUM][0][Constants.MD_X_COORD_NUM]
+            y = a[Constants.MD_POSITONS_NUM][0][Constants.MD_Y_COORD_NUM]
+            # Draw line to array
+            if 0 <= x < 94 and 0 <= y < 50:
+                data[int(x), int(y)] = int(point)
+            #
+            #last_x = x
+            #last_y = y
+            point += step
+        #plt.imshow(data, cmap="gray")
+        #plt.show()
+        #a = 0
+        #data = np.flip(data, axis=(0, 1))
+        return data
+
+
+# for outliers:
+# https://stackoverflow.com/questions/23199796/detect-and-exclude-outliers-in-pandas-data-frame?fbclid=IwAR0F0_gPsovw9jErz3kAjHjip-whp8Q4hm2cZBHtrxNpHLnIMuyFdvO8TGc
 
 def transform_vector_for_nn(in_name, out_name):
     rows = list()
     with open(in_name) as file:
         reader = csv.reader(file, delimiter='|')
         for row in reader:
-            if len(row) != 147 or float(row[144]) > 180:
+            if len(row) != 147:
                 continue
             #if float(row[141])>50:
             #    continue
@@ -336,5 +395,5 @@ def transform_vector_for_nn(in_name, out_name):
 
 
 if __name__ == '__main__':
-    transform_vector_for_nn('../match_data/nba_vectors_defenders_distance_all_moments.csv',
-                            '../match_data/nba_vectors_defenders_distance_corrected_all_moments.csv')
+    transform_vector_for_nn('../match_data/nba_vectors_defenders_distance.csv',
+                            '../match_data/nba_vectors_defenders_distance_corrected.csv')

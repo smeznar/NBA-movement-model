@@ -14,7 +14,7 @@ all_teams = ['BOS', 'LAC', 'CHI', 'PHI', 'CLE', 'MEM', 'ATL', 'SAC', 'UTA', 'POR
 class FileExtractor:
     def __init__(self):
         self.base_path = Constants.DATA_BASE_PATH
-        self.teams = all_teams[15:]
+        self.teams = ['ORL']
         self.current_team = ''
         # OKC fast not many passes, GSW fast and many passes, MEM slow and many passes
         self.match_list = []
@@ -63,15 +63,16 @@ class ModelMatches:
 # TODO: maybe transfer directly to ModelMatches
 if __name__ == '__main__':
     fe = FileExtractor()
-    mm = ModelMatches()
+    #mm = ModelMatches()
     file_name = fe.get_next_file_name()
     while file_name is not None:
         mv = MatchVectorizer.MatchVectorizer(file_name, fe.current_team)
         print(fe.current_team, ': ', file_name)
         attacks = mv.get_next_attack()
-        print(len(attacks))
-        for a in attacks:
-            mm.write_row(a)
+#        print(len(attacks))
+        #
+        #for a in attacks:
+        #    mm.write_row(a)
         # except Exception as e:
         #     mm.finish_file()
         #     print(e)
@@ -79,4 +80,4 @@ if __name__ == '__main__':
         file_name = fe.get_next_file_name()
         while file_name == 0:
             file_name = fe.get_next_file_name()
-    mm.finish_file()
+    #mm.finish_file()
