@@ -271,8 +271,8 @@ class TeamSimilarity:
 
     def create_model(self):
         self.model = Sequential()
-        # self.model.add(Dense(30, activation='softmax', input_dim=81))
-        self.model.add(Dense(6, activation='softmax', input_dim=81))
+        self.model.add(Dense(30, activation='softmax', input_dim=81))
+        # self.model.add(Dense(6, activation='softmax', input_dim=81))
         self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
         self.model.summary()
 
@@ -301,8 +301,10 @@ class TeamSimilarity:
     def load_model(self):
         # self.model = load_model('../match_data/weight9_model.h5')
         # self.model.load_weights('../match_data/weight9_model.h5')
-        self.model = load_model('../match_data/group_model_base.h5')
-        self.model.load_weights('../match_data/group_model_base.h5')
+        # self.model = load_model('../match_data/group_model_base.h5')
+        # self.model.load_weights('../match_data/group_model_base.h5')
+        self.model = load_model('../match_data/individual.h5')
+        self.model.load_weights('../match_data/individual.h5')
 
     def test_model(self):
         predictions = self.model.predict(self.x_test)
@@ -323,16 +325,19 @@ class TeamSimilarity:
 
 
 if __name__ == '__main__':
+    print("IMAGE AUTOENCODER --------------------")
     ia = ImageAutoencoder()
     #ia.create_model()
-    # ia.load_model()
-    # ia.test_model()
+    ia.load_model()
+    ia.test_model()
+    print("")
+    print("AUTOENCODER VECTOR CLASSIFICATION --------------------")
     #ia.predict()
     #ia.show_attack('../match_data/image_autoencoder_vectors9_hc.csv')
     #ia.show_kernels()
     #ia.make_data_from_network()
     #ia.fit_model()
-    ts = TeamSimilarity()
+    ts = TeamSimilarity(False)
     ts.load_model()
     #ts.create_model()
     #ts.fit_model()

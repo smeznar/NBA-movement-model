@@ -1,0 +1,14 @@
+Testiranje izdelka
+A) testiranje vektorjev
+B) testiranje slik
+
+
+A. Testiranje vektorjev
+podatki za izgradnjo vektojev so dostopni na: https://github.com/smeznar/nba-movement-data
+Poleg tega so že pripravljeni vektorji v /match_data/nba_vectors_defenders_distance_corrected.csv.zip, te je potrebno odzipati.
+Če poženete to skripto se bodo izpisali podatki testiranja.
+Modela, ki smo ga sami naredili v testiranju ni, saj je ta narejen na način, ki ne podpira načina, ki ga keras ponudi za shranjevanje
+
+B. Testiranje slik
+vektorje pridobljeni z avtomatskim kodirnikom slik se nahajajo v project_code/image_autoencoder_vectors9.csv.zip in jih je potrebno odzipati
+Nato poženite skripto ImageAutoencoder.py.

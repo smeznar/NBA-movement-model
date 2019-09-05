@@ -69,6 +69,7 @@ class AutoencoderNeuralNetwork:
         vector_predictions = self.model.predict(self.x_test)
         print("MAE: " + str(np.sum(np.abs(vector_predictions - self.x_test))/vector_predictions.size))
         print(self.model.evaluate(x=self.x_test, y=self.x_test))
+        print("")
 
     def classify_latent_vectors(self):
         # self.model.pop()
@@ -93,6 +94,7 @@ class AutoencoderNeuralNetwork:
         self.test_brier(pred, self.y_test)
         self.test_accuracy(pred, self.y_test)
         print(self.model.evaluate(x=self.x_test, y=self.y_test))
+        print("")
 
     def test_brier(self, predictions, real_value):
         preds = predictions - real_value
@@ -172,6 +174,7 @@ class ClassificationNeuralNetwork:
         self.test_brier(pred, self.y_test)
         self.test_accuracy(pred, self.y_test)
         print(self.model.evaluate(x=self.x_test, y=self.y_test))
+        print("")
 
     def load_model(self):
         # self.model = load_model('../match_data/custom_vector_model.h5')
@@ -184,6 +187,7 @@ class ClassificationNeuralNetwork:
         self.test_brier(pred, self.y_test)
         self.test_accuracy(pred, self.y_test)
         print(self.model.evaluate(x=self.x_test, y=self.y_test))
+        print("")
 
     def get_weights(self):
         self.model = load_model('../match_data/model_parameters_classification.h5')
@@ -287,16 +291,18 @@ class BallNeuralNetwork:
 
 
 if __name__ == '__main__':
+    print("SIMPLE CLASIFICATION ------------------------------")
     nn = ClassificationNeuralNetwork()
     nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
-    # nn.get_weights()
     nn.load_model()
-    # nn.fit_model()
     nn.test_vectors()
-
-    # nn = AutoencoderNeuralNetwork()
-    # nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
+    # nn.get_weights()
     # nn.fit_model()
-    # nn.load_model()
-    # nn.classify_latent_vectors()
+    print("VECTOR AUTOENCODER ------------------------------")
+    nn = AutoencoderNeuralNetwork()
+    nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
+    # nn.fit_model()
+    nn.load_model()
+    print("AUTOENCODER VECTOR CLASIFICATION ------------------------------")
+    nn.classify_latent_vectors()
 
