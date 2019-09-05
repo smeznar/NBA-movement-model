@@ -323,7 +323,7 @@ class TeamSimilarity:
 
 
 if __name__ == '__main__':
-    # ia = ImageAutoencoder()
+    ia = ImageAutoencoder()
     #ia.create_model()
     # ia.load_model()
     # ia.test_model()
