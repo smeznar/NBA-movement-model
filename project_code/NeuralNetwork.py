@@ -19,67 +19,91 @@ class AutoencoderNeuralNetwork:
         self.x_test = None
         self.y_train = None
         self.y_test = None
+        self.x = None
+        self.y = None
         self.tensorboard = None
         self.team_dict = dict()
         for i in range(30):
             self.team_dict[all_teams[i]] = i
-        #self.create_model()
 
     def get_data(self, path):
-        x = list()
-        y = list()
+        self.x = list()
+        self.y = list()
         with open(path) as file:
             reader = csv.reader(file, delimiter='|')
             for row in reader:
-                x.append([float(row[i]) for i in range(143)])
-                y.append(self.team_dict[row[-1]])
-        normalize = np.array(x[:int(len(x)*0.9)])
+                self.x.append([float(row[i]) for i in range(143)])
+                self.y.append(self.team_dict[row[-1]])
+        normalize = np.array(self.x[:int(len(self.x)*0.8)])
         min_vec = np.min(normalize, axis=0)
         normalize = normalize - min_vec
         max_vec = np.max(normalize, axis=0)
         self.x_train = normalize / max_vec
-        self.x_test = (np.array(x[int(len(x) * 0.9):])-min_vec)/max_vec
-        ohv = to_categorical(np.array(y[:int(len(y) * 0.9)]), 30)
-        self.y_train = ohv
-        ohvt = to_categorical(np.array(y[int(len(y) * 0.9):]), 30)
-        self.y_test = ohvt
+        self.y_train = to_categorical(np.array(self.y[:int(len(self.y)*0.9)]), 30)
+        self.x_test = (np.array(self.x[int(len(self.x) * 0.9):])-min_vec)/max_vec
+        self.y_test = to_categorical(np.array(self.y[int(len(self.y) * 0.9):]), 30)
 
     def create_model(self):
         wanted_dimensions = 10
         self.model = Sequential()
         self.model.add(Dense(8 * wanted_dimensions, input_dim=143, activation='relu'))
         self.model.add(Dense(4 * wanted_dimensions, activation='relu'))
-        self.model.add(Dense(2*wanted_dimensions, activation='relu'))
+        self.model.add(Dense(2 * wanted_dimensions, activation='relu'))
         self.model.add(Dense(wanted_dimensions, activation='relu'))
         self.model.add(Dense(2 * wanted_dimensions, activation='relu'))
         self.model.add(Dense(4 * wanted_dimensions, activation='relu'))
         self.model.add(Dense(8 * wanted_dimensions, activation='relu'))
         self.model.add(Dense(143, activation='linear'))
-        self.model.compile(optimizer='sgd',
-                           loss="mean_squared_error")
+        self.model.compile(optimizer='adam',
+                           loss="mse")
 
     def fit_model(self):
-        # checkpointer = ModelCheckpoint(filepath='../match_data/model_parameters_autoencoder.h5', verbose=1, save_best_only=True)
-        #self.model.fit(self.x_train, self.x_train, epochs=35, batch_size=60, validation_data=(self.x_test, self.x_test),
-        #               callbacks=[self.tensorboard, checkpointer])
-        self.model.summary()
-        self.tensorboard = TensorBoard(log_dir="logs/{}".format(time()))
-        self.model.fit(self.x_train, self.y_train, epochs=90, batch_size=60, validation_data=(self.x_test, self.y_test),
-                       callbacks=[self.tensorboard])
+        checkpointer = ModelCheckpoint(filepath='../match_data/model_parameters_vector_autoencoder.h5', verbose=1, save_best_only=True)
+        self.tensorboard = TensorBoard(log_dir="logs/{}_vectorEncoder".format(time()))
+        self.model.fit(self.x_train, self.x_train, epochs=200, batch_size=60, validation_data=(self.x_test, self.x_test),
+                       callbacks=[self.tensorboard, checkpointer])
 
     def load_model(self):
-        self.model = load_model('../match_data/model_parameters_autoencoder.h5')
-        self.model.load_weights('../match_data/model_parameters_autoencoder.h5')
-        self.model.pop()
-        self.model.pop()
-        self.model.pop()
-        self.model.pop()
-        for layer in self.model.layers:
-            layer.trainable = False
-        layer = Dense(30, activation='softmax')
-        layer.name = layer.name + str("_new")
-        self.model.add(layer)
-        self.model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
+        self.model = load_model('../match_data/model_parameters_vector_autoencoder.h5')
+        self.model.load_weights('../match_data/model_parameters_vector_autoencoder.h5')
+        vector_predictions = self.model.predict(self.x_test)
+        print("MAE: " + str(np.sum(np.abs(vector_predictions - self.x_test))/vector_predictions.size))
+        print(self.model.evaluate(x=self.x_test, y=self.x_test))
+
+    def classify_latent_vectors(self):
+        # self.model.pop()
+        # self.model.pop()
+        # self.model.pop()
+        # self.model.pop()
+        # for layer in self.model.layers:
+        #     layer.trainable = False
+        # layer = Dense(30, activation='softmax')
+        # layer.name = layer.name + str("_new")
+        # self.model.add(layer)
+        # self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        # checkpointer = ModelCheckpoint(filepath='../match_data/model_parameters_vector_classify.h5', verbose=1,
+        #                                save_best_only=True)
+        # self.tensorboard = TensorBoard(log_dir="logs/{}_vectorClassify".format(time()))
+        # self.model.fit(self.x_train, self.y_train, epochs=400, batch_size=128,
+        #                validation_data=(self.x_test, self.y_test),
+        #                callbacks=[self.tensorboard, checkpointer])
+        self.model = load_model('../match_data/model_parameters_vector_classify.h5')
+        self.model.load_weights('../match_data/model_parameters_vector_classify.h5')
+        pred = self.model.predict(self.x_test)
+        self.test_brier(pred, self.y_test)
+        self.test_accuracy(pred, self.y_test)
+        print(self.model.evaluate(x=self.x_test, y=self.y_test))
+
+    def test_brier(self, predictions, real_value):
+        preds = predictions - real_value
+        s = np.sum(np.square(preds))
+        print('brier: ' + str(s / predictions.shape[0]))
+
+    def test_accuracy(self, predictions, real_value):
+        predicted = np.max(np.multiply(real_value, predictions), axis=1)
+        maxes = np.max(predictions, axis=1)
+        s = np.sum(predicted == maxes)
+        print('accuracy: ' + str(s / predictions.shape[0]))
 
 
 class ClassificationNeuralNetwork:
@@ -88,41 +112,40 @@ class ClassificationNeuralNetwork:
         for i in range(30):
             self.team_dict[all_teams[i]] = i
         self.model = None
+        self.x = None
+        self.y = None
         self.x_train = None
         self.y_train = None
         self.x_test = None
         self.y_test = None
         self.tensorboard = None
-        self.create_model()
 
     def get_data(self, path):
-        x = list()
-        y = list()
+        self.x = list()
+        self.y = list()
         with open(path) as file:
             reader = csv.reader(file, delimiter='|')
             for row in reader:
-                x.append([float(row[i]) for i in range(143)])
-                y.append(self.team_dict[row[-1]])
-        normalize = np.array(x[:int(len(x)*0.9)])
+                self.x.append([float(row[i]) for i in range(143)])
+                self.y.append(self.team_dict[row[-1]])
+        normalize = np.array(self.x[:int(len(self.x)*0.8)])
         min_vec = np.min(normalize, axis=0)
         normalize = normalize - min_vec
         max_vec = np.max(normalize, axis=0)
         self.x_train = normalize / max_vec
-        ohv = to_categorical(np.array(y[:int(len(y)*0.9)]), 30)
-        self.y_train = ohv
-        self.x_test = (np.array(x[int(len(x) * 0.9):])-min_vec)/max_vec
-        ohvt = to_categorical(np.array(y[int(len(y) * 0.9):]), 30)
-        self.y_test = ohvt
+        self.y_train = to_categorical(np.array(self.y[:int(len(self.y)*0.8)]), 30)
+        self.x_test = (np.array(self.x[int(len(self.x) * 0.8):])-min_vec)/max_vec
+        self.y_test = to_categorical(np.array(self.y[int(len(self.y) * 0.8):]), 30)
 
     def create_model(self):
-        # self.model = self.custom_classification_model()
-        self.model = self.simple_classification_model()
-        self.tensorboard = TensorBoard(log_dir="logs/{}".format(time()))
-        self.model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
+        self.model = self.custom_classification_model()
+        # self.model = self.simple_classification_model()
+        self.tensorboard = TensorBoard(log_dir="logs/{}_custom_vector_class".format(time()))
+        self.model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     def simple_classification_model(self):
         model = Sequential()
-        model.add(Dense(72, input_dim=143))
+        model.add(Dense(72, activation='relu', input_dim=143))
         model.add(Dense(30, activation='softmax'))
         return model
 
@@ -131,25 +154,60 @@ class ClassificationNeuralNetwork:
         # Moments
         moment_nodes = list()
         for i in range(10):
-            nodes = [Dense(1)(Lambda(lambda x: x[:, (i * 14):(i * 14 + 4)], output_shape=(4,))(input_tensor))]
+            nodes = [Dense(1, activation='relu')(Lambda(lambda x: x[:, (i * 14):(i * 14 + 4)], output_shape=(4,))(input_tensor))]
             for j in range(5):
-                nodes.append(Dense(1)(
+                nodes.append(Dense(1, activation='relu')(
                     Lambda(lambda x: x[:, (i * 14 + j * 2 + 4):(i * 14 + j * 2 + 6)], output_shape=(2,))(input_tensor)))
-            moment_nodes.append(Dense(1)(Concatenate()(nodes)))
-        moment_nodes.append(Dense(1)(Lambda(lambda x: x[:, 140:143], output_shape=(3,))(input_tensor)))
-        hidden = Dense(30)(Concatenate()(moment_nodes))
-        hidden2 = Dense(5)(hidden)
-        output_tensor = Dense(30, activation='softmax')(hidden2)
+            moment_nodes.append(Dense(1, activation='relu')(Concatenate()(nodes)))
+        moment_nodes.append(Dense(1, activation='relu')(Lambda(lambda x: x[:, 140:143], output_shape=(3,))(input_tensor)))
+        hidden = Dense(30, activation='relu')(Concatenate()(moment_nodes))
+        output_tensor = Dense(30, activation='softmax')(hidden)
         return Model(input_tensor, output_tensor)
 
     def fit_model(self):
-        checkpointer = ModelCheckpoint(filepath='../match_data/model_parameters_classification.h5', verbose=1, save_best_only=True)
-        self.model.fit(self.x_train, self.y_train, epochs=40, batch_size=60, validation_data=(self.x_test, self.y_test),
-                       callbacks=[checkpointer, self.tensorboard])
-        self.model.summary()
+        checkpointer = ModelCheckpoint(filepath='../match_data/custom_vector_model.h5', verbose=1, save_best_only=True)
+        self.model.fit(self.x_train, self.y_train, epochs=200, batch_size=60,
+                       validation_data=(self.x_test, self.y_test), callbacks=[checkpointer, self.tensorboard])
+        pred = self.model.predict(self.x_test)
+        self.test_brier(pred, self.y_test)
+        self.test_accuracy(pred, self.y_test)
+        print(self.model.evaluate(x=self.x_test, y=self.y_test))
 
     def load_model(self):
+        # self.model = load_model('../match_data/custom_vector_model.h5')
+        # self.model.load_weights('../match_data/custom_vector_model.h5')
+        self.model = load_model('../match_data/simple_vector_model.h5')
+        self.model.load_weights('../match_data/simple_vector_model.h5')
+
+    def test_vectors(self):
+        pred = self.model.predict(self.x_test)
+        self.test_brier(pred, self.y_test)
+        self.test_accuracy(pred, self.y_test)
+        print(self.model.evaluate(x=self.x_test, y=self.y_test))
+
+    def get_weights(self):
         self.model = load_model('../match_data/model_parameters_classification.h5')
+        self.model.load_weights('../match_data/model_parameters_classification.h5')
+        w = self.model.layers[0].get_weights()[0]
+        with open("weights.csv", 'w') as file:
+            h = [str(i) for i in range(72)]
+            h.append('class')
+            writer = csv.writer(file, delimiter=',')
+            writer.writerow(h)
+            for i in range(30):
+                row = w[:, i].reshape(72).tolist()
+                row.append(all_teams[i])
+                writer.writerow(row)
+
+    def test_brier(self, predictions, real_value):
+        s = np.sum(np.square(predictions - real_value))
+        print('brier: ' + str(s / predictions.shape[0]))
+
+    def test_accuracy(self, predictions, real_value):
+        predicted = np.max(np.multiply(real_value, predictions), axis=1)
+        maxes = np.max(predictions, axis=1)
+        s = np.sum(predicted == maxes)
+        print('accuracy: ' + str(s / predictions.shape[0]))
 
 
 class BallNeuralNetwork:
@@ -229,11 +287,16 @@ class BallNeuralNetwork:
 
 
 if __name__ == '__main__':
-    # nn = NeuralNetwork()
-    # nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
-    # # nn.load_model()
-    # nn.fit_model()
-    nn = AutoencoderNeuralNetwork()
+    nn = ClassificationNeuralNetwork()
     nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
+    # nn.get_weights()
     nn.load_model()
-    nn.fit_model()
+    # nn.fit_model()
+    nn.test_vectors()
+
+    # nn = AutoencoderNeuralNetwork()
+    # nn.get_data('../match_data/nba_vectors_defenders_distance_corrected.csv')
+    # nn.fit_model()
+    # nn.load_model()
+    # nn.classify_latent_vectors()
+
